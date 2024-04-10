@@ -1,4 +1,4 @@
-package main
+package components
 
 // An example demonstrating an application with multiple views.
 //

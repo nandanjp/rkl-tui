@@ -1,7 +1,6 @@
-package main
+package components
 
 // A simple program that makes a GET request and prints the response status.
-
 import (
 	"fmt"
 	"log"
@@ -17,9 +16,7 @@ type HttpModel struct {
 	status int
 	err    error
 }
-
 type statusMsg int
-
 type errMsg struct{ error }
 
 func (e errMsg) Error() string { return e.error.Error() }
@@ -36,11 +33,9 @@ func (m HttpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			return m, nil
 		}
-
 	case statusMsg:
 		m.status = int(msg)
 		return m, tea.Quit
-
 	case errMsg:
 		m.err = msg
 		return m, nil
@@ -73,7 +68,7 @@ func checkServer() tea.Msg {
 }
 
 func initHttp() {
-	p := tea.NewProgram(model{})
+	p := tea.NewProgram(HttpModel{})
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}

@@ -1,4 +1,4 @@
-package main
+package components
 
 import (
 	"fmt"
@@ -60,8 +60,8 @@ func newTextarea() textarea.Model {
 	t.FocusedStyle.EndOfBuffer = endOfBufferStyle
 	t.BlurredStyle.EndOfBuffer = endOfBufferStyle
 	t.KeyMap.DeleteWordBackward.SetEnabled(false)
-	t.KeyMap.LineNext = key.NewBinding(key.WithKeys("down"))
-	t.KeyMap.LinePrevious = key.NewBinding(key.WithKeys("up"))
+	t.KeyMap.LineNext = key.NewBinding(key.WithKeys("down"), key.WithKeys("j"))
+	t.KeyMap.LinePrevious = key.NewBinding(key.WithKeys("up"), key.WithKeys("k"))
 	t.Blur()
 	return t
 }
@@ -131,16 +131,14 @@ func (m SplitViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.focus > len(m.inputs)-1 {
 				m.focus = 0
 			}
-			cmd := m.inputs[m.focus].Focus()
-			cmds = append(cmds, cmd)
+			cmds = append(cmds, m.inputs[m.focus].Focus())
 		case key.Matches(msg, m.keymap.prev):
 			m.inputs[m.focus].Blur()
 			m.focus--
 			if m.focus < 0 {
 				m.focus = len(m.inputs) - 1
 			}
-			cmd := m.inputs[m.focus].Focus()
-			cmds = append(cmds, cmd)
+			cmds = append(cmds, m.inputs[m.focus].Focus())
 		case key.Matches(msg, m.keymap.add):
 			m.inputs = append(m.inputs, newTextarea())
 		case key.Matches(msg, m.keymap.remove):
@@ -163,7 +161,6 @@ func (m SplitViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.inputs[i] = newModel
 		cmds = append(cmds, cmd)
 	}
-
 	return m, tea.Batch(cmds...)
 }
 
@@ -192,7 +189,6 @@ func (m SplitViewModel) View() string {
 	for i := range m.inputs {
 		views = append(views, m.inputs[i].View())
 	}
-
 	return lipgloss.JoinHorizontal(lipgloss.Top, views...) + "\n\n" + help
 }
 

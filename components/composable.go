@@ -1,4 +1,4 @@
-package main
+package components
 
 import (
 	"fmt"
@@ -58,26 +58,26 @@ var (
 	helpStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 )
 
-type mainModel struct {
+type ComposableModel struct {
 	state   sessionState
 	timer   timer.Model
 	spinner spinner.Model
 	index   int
 }
 
-func newMainModel(timeout time.Duration) mainModel {
-	m := mainModel{state: timerView}
+func newMainModel(timeout time.Duration) ComposableModel {
+	m := ComposableModel{state: timerView}
 	m.timer = timer.New(timeout)
 	m.spinner = spinner.New()
 	return m
 }
 
-func (m mainModel) Init() tea.Cmd {
+func (m ComposableModel) Init() tea.Cmd {
 	// start the timer and spinner on program start
 	return tea.Batch(m.timer.Init(), m.spinner.Tick)
 }
 
-func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m ComposableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
@@ -120,7 +120,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m mainModel) View() string {
+func (m ComposableModel) View() string {
 	var s string
 	model := m.currentFocusedModel()
 	if m.state == timerView {
@@ -132,14 +132,14 @@ func (m mainModel) View() string {
 	return s
 }
 
-func (m mainModel) currentFocusedModel() string {
+func (m ComposableModel) currentFocusedModel() string {
 	if m.state == timerView {
 		return "timer"
 	}
 	return "spinner"
 }
 
-func (m *mainModel) Next() {
+func (m *ComposableModel) Next() {
 	if m.index == len(spinners)-1 {
 		m.index = 0
 	} else {
@@ -147,7 +147,7 @@ func (m *mainModel) Next() {
 	}
 }
 
-func (m *mainModel) resetSpinner() {
+func (m *ComposableModel) resetSpinner() {
 	m.spinner = spinner.New()
 	m.spinner.Style = spinnerStyle
 	m.spinner.Spinner = spinners[m.index]

@@ -1,4 +1,4 @@
-package main
+package components
 
 // A simple example demonstrating the use of multiple text input components
 // from the Bubbles component library.
@@ -33,8 +33,9 @@ type InputModel struct {
 }
 
 func initialModel() InputModel {
+	const numInputs = 1
 	m := InputModel{
-		inputs: make([]textinput.Model, 3),
+		inputs: make([]textinput.Model, numInputs),
 	}
 
 	var t textinput.Model
@@ -45,22 +46,20 @@ func initialModel() InputModel {
 
 		switch i {
 		case 0:
-			t.Placeholder = "Nickname"
+			t.Placeholder = "Name: "
 			t.Focus()
 			t.PromptStyle = focusedStyle
 			t.TextStyle = focusedStyle
-		case 1:
-			t.Placeholder = "Email"
-			t.CharLimit = 64
-		case 2:
-			t.Placeholder = "Password"
-			t.EchoMode = textinput.EchoPassword
-			t.EchoCharacter = '•'
+			// case 1:
+			// 	t.Placeholder = "Email"
+			// 	t.CharLimit = 64
+			// case 2:
+			// 	t.Placeholder = "Password"
+			// 	t.EchoMode = textinput.EchoPassword
+			// 	t.EchoCharacter = '•'
 		}
-
 		m.inputs[i] = t
 	}
-
 	return m
 }
 
@@ -75,8 +74,7 @@ func (m InputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "esc":
 			return m, tea.Quit
 
-		// Change cursor mode
-		case "ctrl+r":
+		case "ctrl+r": //change cursor mode
 			m.cursorMode++
 			if m.cursorMode > cursor.CursorHide {
 				m.cursorMode = cursor.CursorBlink
@@ -87,17 +85,12 @@ func (m InputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, tea.Batch(cmds...)
 
-		// Set focus to next input
 		case "tab", "shift+tab", "enter", "up", "down":
 			s := msg.String()
-
-			// Did the user press enter while the submit button was focused?
-			// If so, exit.
 			if s == "enter" && m.focusIndex == len(m.inputs) {
 				return m, tea.Quit
 			}
 
-			// Cycle indexes
 			if s == "up" || s == "shift+tab" {
 				m.focusIndex--
 			} else {
@@ -113,13 +106,11 @@ func (m InputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds := make([]tea.Cmd, len(m.inputs))
 			for i := 0; i <= len(m.inputs)-1; i++ {
 				if i == m.focusIndex {
-					// Set focused state
 					cmds[i] = m.inputs[i].Focus()
 					m.inputs[i].PromptStyle = focusedStyle
 					m.inputs[i].TextStyle = focusedStyle
 					continue
 				}
-				// Remove focused state
 				m.inputs[i].Blur()
 				m.inputs[i].PromptStyle = noStyle
 				m.inputs[i].TextStyle = noStyle
@@ -128,22 +119,17 @@ func (m InputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		}
 	}
-
-	// Handle character input and blinking
-	cmd := m.updateInputs(msg)
-
+	cmd := m.updateInputs(msg) // Handle character input and blinking
 	return m, cmd
 }
 
 func (m *InputModel) updateInputs(msg tea.Msg) tea.Cmd {
 	cmds := make([]tea.Cmd, len(m.inputs))
-
 	// Only text inputs with Focus() set will respond, so it's safe to simply
 	// update all of them here without any further logic.
 	for i := range m.inputs {
 		m.inputs[i], cmds[i] = m.inputs[i].Update(msg)
 	}
-
 	return tea.Batch(cmds...)
 }
 
@@ -156,7 +142,6 @@ func (m InputModel) View() string {
 			b.WriteRune('\n')
 		}
 	}
-
 	button := &blurredButton
 	if m.focusIndex == len(m.inputs) {
 		button = &focusedButton
@@ -166,7 +151,6 @@ func (m InputModel) View() string {
 	b.WriteString(inputsHelpStyle.Render("cursor mode is "))
 	b.WriteString(cursorModeHelpStyle.Render(m.cursorMode.String()))
 	b.WriteString(inputsHelpStyle.Render(" (ctrl+r to change style)"))
-
 	return b.String()
 }
 

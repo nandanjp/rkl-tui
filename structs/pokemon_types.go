@@ -1,5 +1,12 @@
 package structs
 
+import (
+	"bytes"
+	"fmt"
+
+	md "github.com/nao1215/markdown"
+)
+
 // Ability is a single ability.
 type Ability struct {
 	EffectChanges []struct {
@@ -269,6 +276,29 @@ type Pokemon struct {
 		} `json:"type"`
 	} `json:"types"`
 	Weight int `json:"weight"`
+}
+
+func (p Pokemon) ToMarkdown() *bytes.Buffer {
+	buf := new(bytes.Buffer)
+	abilities, moves, stats, types := []string{}, []string{}, []string{}, []string{}
+	for _, ability := range p.Abilities {
+		abilities = append(abilities, fmt.Sprintf("%s, Hidden: %v", ability.Ability.Name, ability.IsHidden))
+	}
+	for _, move := range p.Moves {
+		moves = append(moves, move.Move.Name)
+	}
+	for _, stat := range p.Stats {
+		stats = append(stats, fmt.Sprintf("Base: %d, Effort: %d, Name: %s", stat.BaseStat, stat.Effort, stat.Stat.Name))
+	}
+	for _, t := range p.Types {
+		types = append(types, t.Type.Name)
+	}
+	height := fmt.Sprintf("Height = %d", p.Height)
+	weight := fmt.Sprintf("Weight = %d", p.Weight)
+	name := fmt.Sprintf("Pokemon = %s", p.Name)
+
+	md.NewMarkdown(buf).H1(name).H2("Abilities:").BulletList(abilities...).H2("Moves:").OrderedList(moves...).H2("Stats:").BulletList(stats...).H2("Types").BulletList(types...).H3(height).H3(weight).Build()
+	return buf
 }
 
 // PokemonColor is a single Pokemon color.
