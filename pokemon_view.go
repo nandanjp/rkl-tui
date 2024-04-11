@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/help"
@@ -27,7 +26,7 @@ var (
 	focusedButton = focusedStyle.Copy().Render("[Submit]")
 	blurredButton = blurredStyle.Copy().Render("Submit")
 
-	modelStyle = lipgloss.NewStyle().Width(30).Height(30).Align(lipgloss.Center, lipgloss.Center).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("216"))
+	modelStyle = lipgloss.NewStyle().Width(40).Height(50).Align(lipgloss.Center, lipgloss.Center).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("216"))
 )
 
 type keymap = struct {
@@ -47,9 +46,10 @@ type PokemonViewModel struct {
 }
 
 func newView(content string) (*viewport.Model, error) {
-	const width = 100
-	vp := viewport.New(width, 30)
-	vp.Style = lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("79")).Padding(2)
+	const width = 120
+	vp := viewport.New(width, 50)
+	vp.Style = lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("79")).Padding(1)
+	vp.MouseWheelDelta = 1
 
 	str, err := glamour.Render(content, "dark")
 	if err != nil {
@@ -57,7 +57,19 @@ func newView(content string) (*viewport.Model, error) {
 		return nil, err
 	}
 	vp.SetContent(str)
+	// vp.HighPerformanceRendering = true
+	vp.MouseWheelEnabled = true
 	return &vp, nil
+}
+
+func updateViewContent(vp *viewport.Model, content string) error {
+	str, err := glamour.Render(content, "dark")
+	if err != nil {
+		fmt.Printf("There was an error: %v", err)
+		return err
+	}
+	vp.SetContent(str)
+	return nil
 }
 
 func newInput(placeHolder string) textinput.Model {
@@ -83,8 +95,8 @@ func NewPokemonViewModel(content string) (PokemonViewModel, error) {
 			mode:       key.NewBinding(key.WithKeys("ctrl+r"), key.WithHelp("ctrl+r", "mode")),
 			search:     key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "search")),
 			change:     key.NewBinding(key.WithKeys("ctrl+n"), key.WithHelp("ctrl+n", "change to viewport")),
-			scrollUp:   key.NewBinding(key.WithKeys("k"), key.WithHelp("up", "scroll up")),
-			scrollDown: key.NewBinding(key.WithKeys("j"), key.WithHelp("down", "scroll down")),
+			scrollUp:   key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
+			scrollDown: key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
 			quit:       key.NewBinding(key.WithKeys("esc", "ctrl+c", "q"), key.WithHelp("esc", "quit")),
 		},
 		output:     *vp,
@@ -95,7 +107,7 @@ func NewPokemonViewModel(content string) (PokemonViewModel, error) {
 }
 
 func (m PokemonViewModel) Init() tea.Cmd {
-	return textinput.Blink
+	return m.output.Init()
 }
 
 func (m PokemonViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -109,27 +121,19 @@ func (m PokemonViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursorMode > cursor.CursorHide {
 				m.cursorMode = cursor.CursorBlink
 			}
-			cmds = make([]tea.Cmd, len(m.inputs))
+			inputCmds := make([]tea.Cmd, len(m.inputs))
 			for i := range m.inputs {
-				cmds[i] = m.inputs[i].Cursor.SetMode(m.cursorMode)
+				inputCmds[i] = m.inputs[i].Cursor.SetMode(m.cursorMode)
 			}
-			return m, tea.Batch(cmds...)
+			cmds = append(cmds, inputCmds...)
 		case key.Matches(msg, m.keymap.search):
 			if m.focusIndex == len(m.inputs)-1 {
 				pokemon, err := Pokemon(m.inputs[m.focusIndex].Value())
-				var vp *viewport.Model
 				if err != nil {
-					vp, err = newView(err.Error())
-					if err != nil {
-						return m, tea.Batch(cmds...)
-					}
+					_ = updateViewContent(&m.output, err.Error())
 				} else {
-					vp, err = newView(pokemon.ToMarkdown().String())
-					if err != nil {
-						return m, tea.Batch(cmds...)
-					}
+					_ = updateViewContent(&m.output, pokemon.ToMarkdown().String())
 				}
-				m.output = *vp
 			}
 		case key.Matches(msg, m.keymap.next):
 			m.inputs[m.focusIndex].Blur()
@@ -157,7 +161,6 @@ func (m PokemonViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.onViewport = true
 				m.inputs[m.focusIndex].Blur()
 			}
-			m.output.MouseWheelEnabled = m.onViewport
 		case key.Matches(msg, m.keymap.quit):
 			for i := range m.inputs {
 				m.inputs[i].Blur()
@@ -167,6 +170,23 @@ func (m PokemonViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
 		m.width = msg.Width
+	case tea.MouseMsg:
+		if !m.output.MouseWheelEnabled || msg.Action != tea.MouseActionPress {
+			break
+		}
+		switch msg.Button {
+		case tea.MouseButtonWheelUp:
+			lines := m.output.LineUp(m.output.MouseWheelDelta)
+			if m.output.HighPerformanceRendering {
+				cmds = append(cmds, viewport.ViewUp(m.output, lines))
+			}
+
+		case tea.MouseButtonWheelDown:
+			lines := m.output.LineDown(m.output.MouseWheelDelta)
+			if m.output.HighPerformanceRendering {
+				cmds = append(cmds, viewport.ViewDown(m.output, lines))
+			}
+		}
 	}
 	inputCmds := make([]tea.Cmd, len(m.inputs))
 	for i := range m.inputs {
@@ -189,18 +209,6 @@ func (m PokemonViewModel) View() string {
 	for i := range m.inputs {
 		views = append(views, m.inputs[i].View())
 	}
-
 	view := lipgloss.JoinVertical(lipgloss.Center, modelStyle.Render(fmt.Sprintf("%4s", views)))
-
-	var b strings.Builder
-	button := &blurredButton
-	if m.focusIndex == len(m.inputs) {
-		button = &focusedButton
-	}
-	fmt.Fprintf(&b, "%s\n\n", *button)
-	b.WriteString(helpStyle.Render("cursor mode is "))
-	b.WriteString(cursorModeHelpStyle.Render(m.cursorMode.String()))
-	b.WriteString(helpStyle.Render(" (ctrl+r to change style)"))
-
-	return lipgloss.JoinHorizontal(lipgloss.Top, view, m.output.View()) + "\n\n" + lipgloss.JoinVertical(lipgloss.Left, b.String(), helpStyle.Render(help)+"\n\n")
+	return lipgloss.JoinHorizontal(lipgloss.Top, view, m.output.View()) + "\n\n" + lipgloss.JoinVertical(lipgloss.Left, helpStyle.Render(help)+"\n\n")
 }
